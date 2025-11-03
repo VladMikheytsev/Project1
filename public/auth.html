@@ -89,6 +89,15 @@
       tabLogin.addEventListener('click', () => activate('login'));
       tabReg.addEventListener('click', () => activate('register'));
 
+      async function parseResponse(res) {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          try { return await res.json(); } catch { return { error: 'Invalid JSON response' }; }
+        }
+        const text = await res.text();
+        return { error: text || res.statusText || `HTTP ${res.status}` };
+      }
+
       formReg.addEventListener('submit', async (e) => {
         e.preventDefault();
         regMsg.textContent = '';
@@ -98,7 +107,7 @@
         const password = document.getElementById('reg-password').value;
         try {
           const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firstName, lastName, email, password }) });
-          const data = await res.json();
+          const data = await parseResponse(res);
           if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
           regMsg.style.color = '#22c55e';
           regMsg.textContent = 'Успешная регистрация! Теперь войдите.';
@@ -116,7 +125,7 @@
         const password = document.getElementById('login-password').value;
         try {
           const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-          const data = await res.json();
+          const data = await parseResponse(res);
           if (!res.ok) throw new Error(data.error || 'Ошибка входа');
           loginMsg.style.color = '#22c55e';
           loginMsg.textContent = `Добро пожаловать, ${data.firstName} ${data.lastName}!`;
