@@ -3,6 +3,13 @@ set -euo pipefail
 
 echo "Starting automatic database migrations..."
 
+# Populate DATABASE_URL/MYSQL_URL from Railway MYSQL* envs if not set
+if [[ -z "${DATABASE_URL:-}" && -n "${MYSQLHOST:-}" && -n "${MYSQLUSER:-}" && -n "${MYSQLPASSWORD:-}" && -n "${MYSQLDATABASE:-}" ]]; then
+  export DATABASE_URL="mysql://${MYSQLUSER}:${MYSQLPASSWORD}@${MYSQLHOST}:${MYSQLPORT:-3306}/${MYSQLDATABASE}"
+  export MYSQL_URL="$DATABASE_URL"
+  echo "Using Railway MYSQL* envs for DATABASE_URL"
+fi
+
 # Raw MySQL (from DATABASE_URL or MYSQL_URL) with .sql files
 if [[ "${DATABASE_URL:-}" == mysql://* || "${MYSQL_URL:-}" == mysql://* ]]; then
   DBURL="${MYSQL_URL:-${DATABASE_URL:-}}"
