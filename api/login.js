@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { getPool } = require('./_lib/db');
+const { getPool, getUserTable } = require('./_lib/db');
 
 async function readJsonBody(req) {
   if (req.body) return req.body;
@@ -28,10 +28,19 @@ module.exports = async (req, res) => {
     const emailNorm = String(email).trim().toLowerCase();
 
     const pool = getPool();
-    const [rows] = await pool.execute(
-      'SELECT `id`, `email`, `passwordHash`, `role`, `isActive` FROM `User` WHERE `email` = ? LIMIT 1',
-      [emailNorm]
-    );
+    const table = await getUserTable(pool);
+    let rows;
+    if (table === 'users') {
+      [rows] = await pool.execute(
+        'SELECT `id`, `email`, `password_hash` AS `passwordHash` FROM `users` WHERE `email` = ? LIMIT 1',
+        [emailNorm]
+      );
+    } else {
+      [rows] = await pool.execute(
+        'SELECT `id`, `email`, `passwordHash`, `role`, `isActive` FROM `'+table+'` WHERE `email` = ? LIMIT 1',
+        [emailNorm]
+      );
+    }
     if (rows.length === 0) {
       res.statusCode = 401;
       return res.end(JSON.stringify({ error: 'Invalid credentials' }));
@@ -44,12 +53,15 @@ module.exports = async (req, res) => {
       return res.end(JSON.stringify({ error: 'Invalid credentials' }));
     }
 
-    if (user.isActive !== 1 && user.isActive !== true) {
-      res.statusCode = 403;
-      return res.end(JSON.stringify({ error: 'User is not active' }));
+    if (table !== 'users') {
+      if (user.isActive !== 1 && user.isActive !== true) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ error: 'User is not active' }));
+      }
+      return res.end(JSON.stringify({ id: user.id, email: user.email, role: user.role }));
+    } else {
+      return res.end(JSON.stringify({ id: user.id, email: user.email }));
     }
-
-    return res.end(JSON.stringify({ id: user.id, email: user.email, role: user.role }));
   } catch (err) {
     res.statusCode = 500;
     return res.end(JSON.stringify({ error: 'Internal Server Error' }));
