@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { nanoid } = require('nanoid');
-const { getPool } = require('./_lib/db');
+const { getPool, getUserTable } = require('./_lib/db');
 
 async function readJsonBody(req) {
   if (req.body) return req.body;
@@ -38,37 +38,56 @@ module.exports = async (req, res) => {
     }
 
     const pool = getPool();
+    const table = await getUserTable(pool);
 
-    const [rows] = await pool.execute('SELECT `id` FROM `User` WHERE `email` = ? LIMIT 1', [emailNorm]);
+    const [rows] = await pool.execute(`SELECT \`id\` FROM \`${table}\` WHERE \`email\` = ? LIMIT 1`, [emailNorm]);
     if (rows.length > 0) {
       res.statusCode = 409;
       return res.end(JSON.stringify({ error: 'User already exists' }));
     }
 
-    const id = nanoid();
     const passwordHash = await bcrypt.hash(String(password), 12);
 
-    const sql = 'INSERT INTO `User` (`id`,`email`,`passwordHash`,`role`,`isActive`,`mustChangePassword`,`resetToken`,`resetTokenExpiresAt`,`createdAt`,`updatedAt`) VALUES (?,?,?,?,?,?,?, ?, NOW(), NOW())';
-    try {
-      await pool.execute(sql, [
-        id,
-        emailNorm,
-        passwordHash,
-        'USER',
-        1,
-        0,
-        null,
-        null
-      ]);
-    } catch (e) {
-      if (e && e.code === 'ER_DUP_ENTRY') {
-        res.statusCode = 409;
-        return res.end(JSON.stringify({ error: 'Email already in use' }));
+    if (table === 'users') {
+      const sql = 'INSERT INTO `users` (`email`,`password_hash`,`first_name`,`last_name`) VALUES (?,?,?,?)';
+      try {
+        const [result] = await pool.execute(sql, [
+          emailNorm,
+          passwordHash,
+          String(firstName).trim(),
+          String(lastName).trim()
+        ]);
+        return res.end(JSON.stringify({ id: result.insertId, email: emailNorm }));
+      } catch (e) {
+        if (e && e.code === 'ER_DUP_ENTRY') {
+          res.statusCode = 409;
+          return res.end(JSON.stringify({ error: 'Email already in use' }));
+        }
+        throw e;
       }
-      throw e;
+    } else {
+      const id = nanoid();
+      const sql = 'INSERT INTO `'+table+'` (`id`,`email`,`passwordHash`,`role`,`isActive`,`mustChangePassword`,`resetToken`,`resetTokenExpiresAt`,`createdAt`,`updatedAt`) VALUES (?,?,?,?,?,?,?, ?, NOW(), NOW())';
+      try {
+        await pool.execute(sql, [
+          id,
+          emailNorm,
+          passwordHash,
+          'USER',
+          1,
+          0,
+          null,
+          null
+        ]);
+        return res.end(JSON.stringify({ id, email: emailNorm, role: 'USER' }));
+      } catch (e) {
+        if (e && e.code === 'ER_DUP_ENTRY') {
+          res.statusCode = 409;
+          return res.end(JSON.stringify({ error: 'Email already in use' }));
+        }
+        throw e;
+      }
     }
-
-    return res.end(JSON.stringify({ id, email: emailNorm, role: 'USER' }));
   } catch (err) {
     res.statusCode = 500;
     return res.end(JSON.stringify({ error: 'Internal Server Error' }));
