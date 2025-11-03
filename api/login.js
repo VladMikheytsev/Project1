@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
 
     const pool = getPool();
     const [rows] = await pool.execute(
-      'SELECT id, email, password_hash, first_name, last_name FROM users WHERE email = ? LIMIT 1',
+      'SELECT `id`, `email`, `passwordHash`, `role`, `isActive` FROM `User` WHERE `email` = ? LIMIT 1',
       [emailNorm]
     );
     if (rows.length === 0) {
@@ -38,13 +38,18 @@ module.exports = async (req, res) => {
     }
 
     const user = rows[0];
-    const ok = await bcrypt.compare(String(password), user.password_hash);
+    const ok = await bcrypt.compare(String(password), user.passwordHash);
     if (!ok) {
       res.statusCode = 401;
       return res.end(JSON.stringify({ error: 'Invalid credentials' }));
     }
 
-    return res.end(JSON.stringify({ id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name }));
+    if (user.isActive !== 1 && user.isActive !== true) {
+      res.statusCode = 403;
+      return res.end(JSON.stringify({ error: 'User is not active' }));
+    }
+
+    return res.end(JSON.stringify({ id: user.id, email: user.email, role: user.role }));
   } catch (err) {
     res.statusCode = 500;
     return res.end(JSON.stringify({ error: 'Internal Server Error' }));
