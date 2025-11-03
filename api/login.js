@@ -1,7 +1,16 @@
 const bcrypt = require('bcryptjs');
 const { getPool } = require('./_lib/db');
 
+async function readJsonBody(req) {
+  if (req.body) return req.body;
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString('utf8');
+  try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+}
+
 module.exports = async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') {
     res.statusCode = 405;
     res.setHeader('Allow', 'POST');
@@ -9,7 +18,8 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { email, password } = req.body || {};
+    const body = await readJsonBody(req);
+    const { email, password } = body || {};
     if (!email || !password) {
       res.statusCode = 400;
       return res.end(JSON.stringify({ error: 'Missing email or password' }));
@@ -34,7 +44,6 @@ module.exports = async (req, res) => {
       return res.end(JSON.stringify({ error: 'Invalid credentials' }));
     }
 
-    res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ id: user.id, email: user.email, firstName: user.first_name, lastName: user.last_name }));
   } catch (err) {
     res.statusCode = 500;
