@@ -2,7 +2,7 @@
   "version": 2,
   "public": true,
   "env": {
-    "DATABASE_URL": "mysql://root:oigjqIzZjQTuCvdzCUBCQmgQDaBzUUvn@tramway.proxy.rlwy.net:36563/railway"
+    "DATABASE_URL": "mysql://root:oigjqIzZjQTuCvdzCUBCQmgQDaBzUUvn@shuttle.proxy.rlwy.net:49260/railway"
   },
   "builds": [
     { "src": "api/*.js", "use": "@vercel/node" },
