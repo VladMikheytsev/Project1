@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Вход и регистрация</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif; background: #0f172a; color: #e2e8f0; }
+      .container { max-width: 480px; margin: 40px auto; padding: 24px; background: rgba(255,255,255,0.06); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+      h1 { margin: 0 0 16px; font-size: 24px; text-align: center; }
+      .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+      .tabs button { flex: 1; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #e2e8f0; cursor: pointer; }
+      .tabs button.active { background: #22c55e; color: #0b1220; border-color: #22c55e; }
+      form { display: none; }
+      form.active { display: block; }
+      label { display: block; font-size: 14px; color: #94a3b8; margin-bottom: 6px; }
+      input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: #e2e8f0; }
+      .field { margin-bottom: 12px; }
+      .btn { width: 100%; padding: 12px; border-radius: 8px; background: #22c55e; color: #0b1220; font-weight: 600; border: none; cursor: pointer; }
+      .msg { margin-top: 12px; font-size: 14px; color: #eab308; min-height: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Вход и регистрация</h1>
+      <div class="tabs">
+        <button id="tab-login" class="active" type="button">Вход</button>
+        <button id="tab-register" type="button">Регистрация</button>
+      </div>
+
+      <form id="form-login" class="active">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" placeholder="you@example.com" required />
+        </div>
+        <div class="field">
+          <label for="login-password">Пароль</label>
+          <input id="login-password" type="password" placeholder="Пароль" required />
+        </div>
+        <button class="btn" type="submit">Войти</button>
+        <div id="login-msg" class="msg"></div>
+      </form>
+
+      <form id="form-register">
+        <div class="field">
+          <label for="reg-first">Имя</label>
+          <input id="reg-first" type="text" placeholder="Иван" required />
+        </div>
+        <div class="field">
+          <label for="reg-last">Фамилия</label>
+          <input id="reg-last" type="text" placeholder="Иванов" required />
+        </div>
+        <div class="field">
+          <label for="reg-email">Email (логин)</label>
+          <input id="reg-email" type="email" placeholder="you@example.com" required />
+        </div>
+        <div class="field">
+          <label for="reg-password">Пароль (мин. 8 символов)</label>
+          <input id="reg-password" type="password" placeholder="Пароль" minlength="8" required />
+        </div>
+        <button class="btn" type="submit">Зарегистрироваться</button>
+        <div id="reg-msg" class="msg"></div>
+      </form>
+    </div>
+
+    <script>
+      const tabLogin = document.getElementById('tab-login');
+      const tabReg = document.getElementById('tab-register');
+      const formLogin = document.getElementById('form-login');
+      const formReg = document.getElementById('form-register');
+      const loginMsg = document.getElementById('login-msg');
+      const regMsg = document.getElementById('reg-msg');
+
+      function activate(tab) {
+        if (tab === 'login') {
+          tabLogin.classList.add('active');
+          tabReg.classList.remove('active');
+          formLogin.classList.add('active');
+          formReg.classList.remove('active');
+        } else {
+          tabLogin.classList.remove('active');
+          tabReg.classList.add('active');
+          formLogin.classList.remove('active');
+          formReg.classList.add('active');
+        }
+      }
+
+      tabLogin.addEventListener('click', () => activate('login'));
+      tabReg.addEventListener('click', () => activate('register'));
+
+      formReg.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        regMsg.textContent = '';
+        const firstName = document.getElementById('reg-first').value.trim();
+        const lastName = document.getElementById('reg-last').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        try {
+          const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firstName, lastName, email, password }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+          regMsg.style.color = '#22c55e';
+          regMsg.textContent = 'Успешная регистрация! Теперь войдите.';
+          activate('login');
+        } catch (err) {
+          regMsg.style.color = '#eab308';
+          regMsg.textContent = err.message || 'Ошибка регистрации';
+        }
+      });
+
+      formLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginMsg.textContent = '';
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        try {
+          const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+          loginMsg.style.color = '#22c55e';
+          loginMsg.textContent = `Добро пожаловать, ${data.firstName} ${data.lastName}!`;
+        } catch (err) {
+          loginMsg.style.color = '#eab308';
+          loginMsg.textContent = err.message || 'Ошибка входа';
+        }
+      });
+    </script>
+  </body>
+  </html>
+
+
