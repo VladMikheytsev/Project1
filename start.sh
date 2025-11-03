@@ -3,6 +3,13 @@ set -euo pipefail
 
 echo "[start] Starting service..."
 
+# 0) Ensure DATABASE_URL/MYSQL_URL from Railway MYSQL* envs
+if [[ -z "${DATABASE_URL:-}" ]] && [[ -n "${MYSQLHOST:-}" ]] && [[ -n "${MYSQLUSER:-}" ]] && [[ -n "${MYSQLPASSWORD:-}" ]] && [[ -n "${MYSQLDATABASE:-}" ]]; then
+  export DATABASE_URL="mysql://${MYSQLUSER}:${MYSQLPASSWORD}@${MYSQLHOST}:${MYSQLPORT:-3306}/${MYSQLDATABASE}"
+  export MYSQL_URL="$DATABASE_URL"
+  echo "[start] Constructed DATABASE_URL from Railway MYSQL* envs"
+fi
+
 # 1) Run DB migrations if script exists
 if [[ -x "scripts/migrate.sh" ]]; then
   echo "[start] Running migrations"
