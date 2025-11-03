@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const { nanoid } = require('nanoid');
 const { getPool } = require('./_lib/db');
 
 async function readJsonBody(req) {
@@ -38,19 +39,36 @@ module.exports = async (req, res) => {
 
     const pool = getPool();
 
-    const [rows] = await pool.execute('SELECT id FROM users WHERE email = ? LIMIT 1', [emailNorm]);
+    const [rows] = await pool.execute('SELECT `id` FROM `User` WHERE `email` = ? LIMIT 1', [emailNorm]);
     if (rows.length > 0) {
       res.statusCode = 409;
       return res.end(JSON.stringify({ error: 'User already exists' }));
     }
 
-    const passwordHash = await bcrypt.hash(String(password), 10);
-    const [result] = await pool.execute(
-      'INSERT INTO users (email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?)',
-      [emailNorm, passwordHash, String(firstName).trim(), String(lastName).trim()]
-    );
+    const id = nanoid();
+    const passwordHash = await bcrypt.hash(String(password), 12);
 
-    return res.end(JSON.stringify({ id: result.insertId, email: emailNorm, firstName, lastName }));
+    const sql = 'INSERT INTO `User` (`id`,`email`,`passwordHash`,`role`,`isActive`,`mustChangePassword`,`resetToken`,`resetTokenExpiresAt`,`createdAt`,`updatedAt`) VALUES (?,?,?,?,?,?,?, ?, NOW(), NOW())';
+    try {
+      await pool.execute(sql, [
+        id,
+        emailNorm,
+        passwordHash,
+        'USER',
+        1,
+        0,
+        null,
+        null
+      ]);
+    } catch (e) {
+      if (e && e.code === 'ER_DUP_ENTRY') {
+        res.statusCode = 409;
+        return res.end(JSON.stringify({ error: 'Email already in use' }));
+      }
+      throw e;
+    }
+
+    return res.end(JSON.stringify({ id, email: emailNorm, role: 'USER' }));
   } catch (err) {
     res.statusCode = 500;
     return res.end(JSON.stringify({ error: 'Internal Server Error' }));
