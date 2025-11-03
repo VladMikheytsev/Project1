@@ -3,6 +3,32 @@ set -euo pipefail
 
 echo "Starting automatic database migrations..."
 
+# Raw MySQL (from DATABASE_URL or MYSQL_URL) with .sql files
+if [[ "${DATABASE_URL:-}" == mysql://* || "${MYSQL_URL:-}" == mysql://* ]]; then
+  DBURL="${MYSQL_URL:-${DATABASE_URL:-}}"
+  if command -v mysql >/dev/null 2>&1; then
+    if ls db/migrations/*.sql >/dev/null 2>&1 || ls migrations/*.sql >/dev/null 2>&1 || ls sql/*.sql >/dev/null 2>&1; then
+      echo "Detected raw SQL migrations for MySQL. Applying .sql files..."
+      if [[ ! -x "scripts/mysql_from_url.sh" ]]; then
+        chmod +x scripts/mysql_from_url.sh || true
+      fi
+      for dir in db/migrations migrations sql; do
+        if [[ -d "$dir" ]]; then
+          # Apply files in sorted order
+          while IFS= read -r -d '' f; do
+            echo "Applying $f"
+            scripts/mysql_from_url.sh "$DBURL" < "$f"
+          done < <(find "$dir" -maxdepth 1 -type f -name "*.sql" -print0 | sort -z)
+        fi
+      done
+      exit 0
+    fi
+  else
+    echo "mysql client not found. Install it to run raw SQL migrations."
+    exit 1
+  fi
+fi
+
 # Prisma (Node.js)
 if [[ -f "prisma/schema.prisma" ]]; then
   echo "Detected Prisma. Running prisma migrate deploy..."

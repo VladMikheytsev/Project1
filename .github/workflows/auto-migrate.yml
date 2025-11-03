@@ -16,11 +16,15 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     env:
+      # DATABASE_URL from secrets is preferred. We'll set a fallback below if empty.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       APP_ENV: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
 
       # Node.js setup (for Prisma / Sequelize / other Node-based migrations)
       - name: Setup Node.js
@@ -95,7 +99,15 @@ jobs:
           java-version: '17'
 
       - name: Make migrate script executable
-        run: chmod +x scripts/migrate.sh
+        run: |
+          chmod +x scripts/migrate.sh
+          chmod +x scripts/mysql_from_url.sh || true
+
+      - name: Set DATABASE_URL fallback (Railway)
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "DATABASE_URL=mysql://root:oigjqIzZjQTuCvdzCUBCQmgQDaBzUUvn@tramway.proxy.rlwy.net:36563/railway" >> $GITHUB_ENV
+          fi
 
       - name: Run migrations
         run: scripts/migrate.sh
