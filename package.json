@@ -1,0 +1,15 @@
+{
+  "name": "project1",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auth forms and API on Vercel with Railway MySQL",
+  "scripts": {
+    "start": "echo 'Use Vercel for deployment' && exit 0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "mysql2": "^3.11.3"
+  }
+}
+
+
