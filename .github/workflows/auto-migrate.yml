@@ -106,7 +106,7 @@ jobs:
       - name: Set DATABASE_URL fallback (Railway)
         run: |
           if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "DATABASE_URL=mysql://root:oigjqIzZjQTuCvdzCUBCQmgQDaBzUUvn@tramway.proxy.rlwy.net:36563/railway" >> $GITHUB_ENV
+            echo "DATABASE_URL=mysql://root:oigjqIzZjQTuCvdzCUBCQmgQDaBzUUvn@shuttle.proxy.rlwy.net:49260/railway" >> $GITHUB_ENV
           fi
 
       - name: Run migrations
