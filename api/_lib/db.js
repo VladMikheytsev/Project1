@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');
 
-let pool; 
+let pool;
+let cachedUserTableName = null;
 
 function getDatabaseUrl() {
   if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql://')) return process.env.DATABASE_URL;
@@ -26,6 +27,23 @@ function getPool() {
   return pool;
 }
 
-module.exports = { getPool };
+async function getUserTable(poolInstance) {
+  if (cachedUserTableName) return cachedUserTableName;
+  const sql = 'SELECT table_name AS t FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (\'User\', \'user\', \'users\')';
+  const [rows] = await poolInstance.query(sql);
+  const names = rows.map(r => r.t);
+  if (names.includes('User')) {
+    cachedUserTableName = 'User';
+  } else if (names.includes('user')) {
+    cachedUserTableName = 'user';
+  } else if (names.includes('users')) {
+    cachedUserTableName = 'users';
+  } else {
+    cachedUserTableName = 'User';
+  }
+  return cachedUserTableName;
+}
+
+module.exports = { getPool, getUserTable };
 
 
