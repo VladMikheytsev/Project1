@@ -1,0 +1,103 @@
+name: Auto DB Migration
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      APP_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node.js setup (for Prisma / Sequelize / other Node-based migrations)
+      - name: Setup Node.js
+        if: ${{ hashFiles('package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node deps (npm)
+        if: ${{ hashFiles('package.json') != '' && hashFiles('package-lock.json') != '' }}
+        run: npm ci
+
+      - name: Install Node deps (yarn)
+        if: ${{ hashFiles('package.json') != '' && hashFiles('yarn.lock') != '' }}
+        run: yarn install --frozen-lockfile
+
+      - name: Setup PNPM and install
+        if: ${{ hashFiles('package.json') != '' && hashFiles('pnpm-lock.yaml') != '' }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: PNPM install
+        if: ${{ hashFiles('package.json') != '' && hashFiles('pnpm-lock.yaml') != '' }}
+        run: pnpm install --frozen-lockfile
+
+      # Python setup (for Django / Alembic)
+      - name: Setup Python
+        if: ${{ hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python deps (requirements.txt)
+        if: ${{ hashFiles('requirements.txt') != '' }}
+        run: pip install -r requirements.txt
+
+      - name: Install Python deps (Poetry)
+        if: ${{ hashFiles('pyproject.toml') != '' && hashFiles('poetry.lock') != '' }}
+        run: |
+          pip install poetry
+          poetry install --no-interaction --no-ansi
+
+      # Ruby setup (for Rails)
+      - name: Setup Ruby
+        if: ${{ hashFiles('Gemfile') != '' }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      # PHP setup (for Laravel)
+      - name: Setup PHP
+        if: ${{ hashFiles('composer.json') != '' }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Install PHP deps
+        if: ${{ hashFiles('composer.json') != '' }}
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Java setup (for Flyway if needed)
+      - name: Setup Java
+        if: ${{ hashFiles('flyway.conf') != '' || hashFiles('pom.xml') != '' || hashFiles('build.gradle') != '' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make migrate script executable
+        run: chmod +x scripts/migrate.sh
+
+      - name: Run migrations
+        run: scripts/migrate.sh
+
+
